@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="pers.zcc.orm.mybatis.mapper.CityMapper">
+
+
+    <!--查询单个-->
+    <select id="findByName" resultType="pers.zcc.orm.mybatis.entity.City" parameterType="java.lang.String">
+        select countryCode,name,population
+        from city
+        where name = #{name}
+    </select>
+
+</mapper>
+

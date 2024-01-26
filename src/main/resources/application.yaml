@@ -1,0 +1,122 @@
+test:
+  greeting:
+    message: hello
+    name: world
+    to:
+      who: you and me
+
+quarkus:
+  http:
+    port: 8081
+    auth:
+      policy:
+        role-policy1: # 自定义一个权限策略
+          roles-allowed:
+            - user
+            - admin
+      permission:
+        roles1: # 定义一个权限集合，通过url设置拦截面
+          policy: role-policy1 # 引用自定义权限策略集
+          paths:
+            - /ws/*
+        permit1:
+          policy: permit # 引用系统内置权限策略.有三个内置的策略：deny, permit 和 authenticated，依次表示拒绝访问，允许访问和允许通过认证的用户访问
+          paths:
+            - /public/*
+            - /interceptorTest/*
+            - /static/*
+            - /ws/*
+          methods:
+            - GET # 这样就会允许路径下所有的get方法
+            - HEAD
+        deny1:
+          policy: deny # 内置的
+          paths:
+            - /forbidden
+  smallrye-jwt:
+    blocking-authentication: true # quarkus-smallrye-jwt这个库不是响应式的，在获取和解析密钥时可能阻塞。在响应式web框架中容易造成阻塞线程。声明后可以避免阻塞线程
+  shutdown:
+    timeout: PT5S  # Duration格式
+  datasource:
+    "world":
+      db-kind: mysql
+      username: root
+      password: admin
+      jdbc:
+        url: jdbc:mysql://localhost:3306/world?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&allowMultiQueries=true&serverTimezone=GMT%2B8
+        max-size: 16
+  hibernate-orm:
+    "world":
+      datasource: world
+      packages: pers.zcc.orm.hibernate.entity.world
+      database:
+        generation: update
+      sql-load-script: import-world.sql
+  mybatis:
+    mapper-locations: pers.zcc.orm.mybatis.mapper
+
+  native:
+    resources: # META-INF/resources 中的任何东西都会作为静态网络资源暴露出来。所以这个目录不是 "让我们自动把这些资源包含在本地可执行文件中 "的捷径，而应该只用于静态网络资源
+      includes:
+        - pers/zcc/**
+    additional-build-args: # graalvm的参数
+      - -H:+UnlockExperimentalVMOptions
+      - -H:ReflectionConfigurationFiles=reflection-config.json
+      - -H:ResourceConfigurationFiles=resources-config.json
+      - -H:DynamicProxyConfigurationResources=proxies-config.json
+      - -H:-UnlockExperimentalVMOptions
+  package:
+    type: uber-jar  # 此选项开启就会打一个包含了依赖库的一体jar（spring的fat jar）
+    main-class: pers.zcc.launch.MainStart # 没有创建启动类时框架会生成一个（测试后发现即使自定义了也会生成，此时mvn编译会报找到多个可执行类的警告，像这样显式配置启动类可消除警告）
+  ssl:
+    native: true # 支持native镜像使用ssl。基本上使用了网络相关扩展都会自动开启此选项，不需要配置。只有在没有引用相关扩展但希望进行ssl通信时需要显式开启
+  
+  
+  rest-client:
+    "pers.zcc.jaxws.resource.RestClientService": # 默认需要接口全限定名，但也可以通过RegisterRestClient的configKey属性自定义匹配
+      url: http://localhost:8081
+      connect-timeout: 30000
+
+# openssl genrsa -out rsaPrivateKey.pem 2048
+# openssl rsa -pubout -in rsaPrivateKey.pem -out publicKey.pem
+# openssl pkcs8 -topk8 -nocrypt -inform pem -in rsaPrivateKey.pem -outform pem -out privateKey.pem
+smallrye:
+  jwt:
+    sign:
+      key:
+        location: privateKey.pem
+    encrypt:
+      key:
+        location: publicKey.pem
+    verify:
+      key:
+        location: publicKey.pem
+      # algorithm: PS256  已过时，使用mp配置
+      decrypt:
+        key:
+          location: privateKey.pem
+    new-token:
+      signature-algorithm: PS256
+      key-encryption-algorithm: RSA-OAEP-256
+      content-encryption-algorithm: A256CBC-HS512
+      lifespan: 300  # token有效期300s
+      issuer: pers.zcc
+      audience:
+    token:
+      # header: Authorization  已过时，使用mp.jwt.token.header
+      schemes:
+        - Bearer
+mp:
+  jwt:
+    token:
+      header: Authorization
+    verify:
+      publickey:
+        algorithm: PS256
+org:
+  eclipse:
+    microprofile:
+      rest:
+        client:
+          propagateHeaders: Authorization # 设置rest client将透传的请求头
+

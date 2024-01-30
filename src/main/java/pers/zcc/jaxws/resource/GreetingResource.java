@@ -50,7 +50,7 @@ public class GreetingResource {
     Translator translator;
 
     @Inject
-    @PersistenceUnit("world")
+    @PersistenceUnit("world") // hibernate声明使用的持久化单元（数据源）
     EntityManager worldEntityManager;
 
     @GET
@@ -138,27 +138,29 @@ public class GreetingResource {
     public Response restclient(@Context Request request, @Context SecurityContext securityContext) {
         Principal principal = securityContext.getUserPrincipal();// 这里获取的Principal就是jwt里的
         System.out.println(principal.getName());
-        System.out.println(
-                "rest client tname:" + Thread.currentThread().getName() + "-" + Thread.currentThread().threadId());
-        blockingMethod();
         return Response.ok(restClientService.reflection()).build();
     }
 
     /**
-     * @RunOnVirtualThread // 此注解会让方法运行在虚拟线程上。
-     * 在reactive 扩展下才会生效
+     * @RunOnVirtualThread // 此注解会让方法运行在虚拟线程（virtual thread）上。
+     * 在reactive 扩展下才会生效。reactive可以对每个请求使用一个虚拟线程来处理，底层却只使用有限数量的平台线程(platform thread)，从而大大提高服务器并发能力
      * 虚拟线程适用于io密集型任务（jvm遇到阻塞调用会自动切换虚拟线程任务，在io执行完毕后切回来），
-     * 在cpu密集型任务上基本没用，反而可能阻塞承载线程，影响其它虚拟线程任务执行，或导致创建新的承载线程，
+     * 在cpu密集型任务上基本没用，反而可能阻塞承载线程，影响其它虚拟线程任务执行，或导致创建新的承载线程(carriage thread,执行虚拟线程所使用的平台线程)，
      * 进而导致内存使用过高（虚拟线程数量通常很多）。错误使用虚拟线程可能导致占用资源比直接使用平台线程还要高
      * 某些场景下虚拟线程甚至会形成pinning状态从而无法从承载的平台线程上卸载。JEP425：
      * 1.当在同步代码块或同步方法（synchronized修饰，使用reentrantLock可避免）内使用虚拟线程执行阻塞操作；
      * 2.当虚拟线程在本地方法或外部方法（foreign function）内执行阻塞操作时
      * 许多数据库驱动包、第三方库会造成这种问题
-     * 虚拟线程禁止池化，复用
+     * 虚拟线程禁止池化，复用.通常进程内可创建上百万个虚拟线程。虚拟线程的挂起和恢复是廉价的
      * 由于每个虚拟线程都会存储ThreadLocal里的内容，而通常会创建大量虚拟线程，这会造成巨大内存开销，因此对待thread local也要慎重
      * 现在的虚拟线程还不能随便使用，需要开发人员识别使用场景，正确使用它。因此quarkus限制了虚拟线程的使用
      */
-    private void blockingMethod() {
+    //    @RunOnVirtualThread
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/virtualThread")
+    @PermitAll
+    public Response blockingMethod() {
         //        try {
         //            System.out.println(
         //                    "blockingMethod tname::" + Thread.currentThread().getName() + "-" + Thread.currentThread()
@@ -172,15 +174,22 @@ public class GreetingResource {
             e.printStackTrace();
             System.out.println(t.getName());
         }).start(() -> {
+            System.out.println(
+                    "blockingMethod tname1::" + Thread.currentThread().getName() + "-" + Thread.currentThread()
+                            .threadId());
             for (int i = 0; i < 10; i++) {
                 System.out.println(i);
             }
         });
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             executor.submit(() -> {
+                System.out.println(
+                        "blockingMethod tname2::" + Thread.currentThread().getName() + "-" + Thread.currentThread()
+                                .threadId());
                 System.out.println(11);
             });
         }
+        return Response.ok().build();
     }
 
 }

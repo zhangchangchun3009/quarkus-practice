@@ -7,6 +7,9 @@
       "pattern": ".*\\.pem$"
     },
     {
+      "pattern": ".*\\.jks$"
+    },
+    {
       "pattern": ".*\\.json$"
     }
   ]

@@ -7,7 +7,26 @@ test:
 
 quarkus:
   http:
-    port: 8081
+    port: 8081 # 默认值8080
+    root-path: /
+    insecure-requests: redirect # enabled redirect disabled 开启了ssl时对于http请求处理方式
+    ssl-port: 8443  # 默认值就是8443
+    ssl:
+      certificate:
+        key-store-file: https.jks
+        key-store-password: cytg12345 # 明文配置密码是不合适的，可以通过QUARKUS_HTTP_SSL_CERTIFICATE_KEY_STORE_PASSWORD的环境变量从外部注入
+    enable-compression: true # 开启压缩功能。如果客户端支持则使用http内容压缩
+    compress-media-types: # 以下是默认配置,根据content-type决定
+      - text/html
+      - text/plain
+      - text/xml
+      - text/css
+      - text/javascript
+      - application/javascript
+    static-resources:
+      index-page: index.html
+      caching-enabled: true
+      max-age: 24H
     auth:
       policy:
         role-policy1: # 自定义一个权限策略
@@ -69,12 +88,13 @@ quarkus:
     type: uber-jar  # 此选项开启就会打一个包含了依赖库的一体jar（spring的fat jar）
     main-class: pers.zcc.launch.MainStart # 没有创建启动类时框架会生成一个（测试后发现即使自定义了也会生成，此时mvn编译会报找到多个可执行类的警告，像这样显式配置启动类可消除警告）
   ssl:
-    native: true # 支持native镜像使用ssl。基本上使用了网络相关扩展都会自动开启此选项，不需要配置。只有在没有引用相关扩展但希望进行ssl通信时需要显式开启
+    native: true # 支持native镜像使用ssl。会导致打包添加 -H:EnableURLProtocols=http,https 参数
+    # 基本上使用了网络相关扩展都会自动开启此选项，不需要配置。只有在没有引用相关扩展但希望进行ssl通信时需要显式开启
   
   
   rest-client:
     "pers.zcc.jaxws.resource.RestClientService": # 默认需要接口全限定名，但也可以通过RegisterRestClient的configKey属性自定义匹配
-      url: http://localhost:8081
+      url: https://localhost:8081
       connect-timeout: 30000
 
 # openssl genrsa -out rsaPrivateKey.pem 2048

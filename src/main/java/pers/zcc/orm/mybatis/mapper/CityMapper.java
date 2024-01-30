@@ -13,7 +13,7 @@ import pers.zcc.orm.mybatis.entity.City;
  * @since 1.0
  */
 @Mapper
-@MapperDataSource("world")
+@MapperDataSource("world") // 配置多个数据源时指定数据源
 public interface CityMapper {
     City findByName(@Param("name") String name);
 }
